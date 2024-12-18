@@ -1,12 +1,12 @@
 import cv2
-import mediapipe as  mp
+import mediapipe as mp
 import pickle
 import numpy as np
-
+import pyttsx3
 model_dict = pickle.load(open('./model.p', 'rb'))
 model = model_dict['model']
 
-cap = cv2.VideoCapture(0)
+cap = cv2.VideoCapture(1)
 
 mp_hands = mp.solutions.hands
 mp_drawing = mp.solutions.drawing_utils
@@ -20,6 +20,17 @@ HAND_CONNECTIONS = [
     (9, 13), (13, 14), (14, 15), (15, 16),  # Ngón áp út
     (13, 17), (0, 17), (17, 18), (18, 19), (19, 20),  # Ngón út
 ]
+engine = pyttsx3.init()
+engine.setProperty('rate', 150)  # Tốc độ đọc
+engine.setProperty('volume', 0.9)  # Âm lượng (0.0 đến 1.0)
+voices = engine.getProperty('voices')
+engine.setProperty('voice', voices[1].id)  # Chọn giọng (0: nam, 1: nữ)
+
+
+def read_aloud(letter):
+    """Hàm đọc chữ cái nhận diện"""
+    engine.say(f"The letter is {letter}")
+    engine.runAndWait()
 
 hands = mp_hands.Hands(static_image_mode=True, min_detection_confidence=0.3)
 
@@ -36,6 +47,8 @@ while True:
     H, W, _ = frame.shape
 
     frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+
+
 
     # Xử lý hình ảnh với MediaPipe
     results = hands.process(frame_rgb)
@@ -55,24 +68,27 @@ while True:
                 x_.append(landmark.x)
                 y_.append(landmark.y)
 
-        x1 = int(min(x_) * W) -12
-        y1 = int(min(y_) * H) -12
+        x1 = int(min(x_) * W) - 12
+        y1 = int(min(y_) * H) - 12
 
-        x2 = int(max(x_) * W) -5
-        y2 = int(max(y_) * H) -5
+        x2 = int(max(x_) * W) - 5
+        y2 = int(max(y_) * H) - 5
 
         prediction = model.predict([np.asarray(data_aux)])
 
         predicted_character = labels_dict[int(prediction[0])]
+        read_aloud(predicted_character)
+
+
 
 
         cv2.rectangle(frame, (x1, y1), (x2, y2), (0, 0, 0), 4)
-        cv2.putText(frame, predicted_character, (x1, y1 -15), cv2.FONT_HERSHEY_SIMPLEX, 1.3, (0, 0, 0), 3,
+        cv2.putText(frame, predicted_character, (x1, y1 - 15), cv2.FONT_HERSHEY_SIMPLEX, 1.3, (0, 0, 0), 3,
                     cv2.LINE_AA)
 
-
     cv2.imshow('frame', frame)
-    cv2.waitKey(1)
-
+    if cv2.waitKey(1) & 0xFF == ord('q'):
+        break
 cap.release()
+print("Data shape:", np.asarray(data_aux).shape)
 cv2.destroyAllWindows()
